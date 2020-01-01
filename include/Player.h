@@ -35,6 +35,8 @@ public:
     void setName(std::string);
     bool isDead();
     void resetStats();
+	void boost(int);
+	void makeWall(int);
 
     //stats: kills, deaths, powerups collected, slash attacks used, meters travelled (need to figure out a way to do this)
     //will be private, public now for testing
@@ -58,6 +60,10 @@ private:
     float attack_charge;
     float attack_release_timer;
     float attack_duration_timer;
+	float boost_timer;
+	float boost_cooldown;
+	bool boosting;
+	bool blocking;
 };
 
 #endif

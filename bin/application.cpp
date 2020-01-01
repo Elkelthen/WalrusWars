@@ -22,7 +22,6 @@ int main(int argc, char** argv)
   // start main loop
   while(App.isOpen())
   {
-
     sf::Time elapsed = clock.restart();
     float dSec = elapsed.asSeconds();
 	
@@ -31,11 +30,11 @@ int main(int argc, char** argv)
 
     // process game input
     view->processInput(App, *logic, dSec);
+
     // tick natural game logic
     logic->update(dSec);
     // draw window
     view->draw(App, *logic);
-
   }
 
   // Done.

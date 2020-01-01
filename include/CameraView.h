@@ -16,6 +16,22 @@ class CameraView {
     void draw(sf::RenderWindow &window, GameLogic &logic);
 
   private:
+    //Main Menu Objects and Background
+    sf::RectangleShape water_object;
+    sf::RectangleShape bg;
+    std::vector<sf::Text> Buttons;
+    int Main_Menu_Index = 0;
+
+    //Twos Menu Objects and Background
+    sf::RectangleShape player1_portrait_frame = sf::RectangleShape(sf::Vector2f(325 * WINDOW_WIDTH / 800, 425 * WINDOW_HEIGHT / 800));
+    sf::RectangleShape player2_portrait_frame = sf::RectangleShape(sf::Vector2f(325 * WINDOW_WIDTH / 800, 425 * WINDOW_HEIGHT / 800));
+    std::vector<sf::Text> Twos_Buttons;
+    std::vector<sf::Text> Twos_Players;
+    std::vector<std::shared_ptr<Controller> > Twos_Controllers;
+    int Twos_Menu_Index = 0;
+
+
+
     void createControllers(int players);
 
     // draw screen functions
@@ -28,7 +44,7 @@ class CameraView {
     void drawPlayerSelectMenu(sf::RenderWindow &window, GameLogic &logic);
     void drawHelpMenu(sf::RenderWindow &window, GameLogic &logic);
 	void drawPlayerNumberMenu(sf::RenderWindow& window, GameLogic& logic);
-
+    void createTwos();
     void menuUp(sf::RenderWindow &window, GameLogic &logic);
     void menuDown(sf::RenderWindow &window, GameLogic &logic);
     void menuLeft(sf::RenderWindow &window, GameLogic &logic);
@@ -45,17 +61,25 @@ class CameraView {
     bool colorSelector = false;
     bool enteringNameText = false;
     //char player2_menu_selection = 'P';
+
+    std::vector<int> playerType;
+    std::vector<char*> playerName;
+
     int player1OrBot = -1; //-1 is bot, 1 is player
     int player2OrBot = -1; //-1 is bot, 1 is player
 
     // major InputManager classes
-    std::unique_ptr<Controller> player1Controller;
-    std::unique_ptr<Controller> player2Controller;
+    std::shared_ptr<Controller> player1Controller;
+    std::shared_ptr<Controller> player2Controller;
+    std::shared_ptr<Controller> player3Controller;
+    std::shared_ptr<Controller> player4Controller;
 
     //animations and art
     SoundManager soundManager;
     Animation walrus1_animation;
     Animation walrus2_animation;
+	Animation walrus3_animation;
+	Animation walrus4_animation;
     Animation roundCounter10_animation;
     Animation roundCounter20_animation;
     Animation walrusSplash_animation;
@@ -84,6 +108,9 @@ class CameraView {
     std::string walrus2_name_str;
     sf::Text walrus1_name;
     sf::Text walrus2_name;
+	sf::Text walrus3_name;
+	sf::Text walrus4_name;
+    sf::Text name;
 
     //player colors
     sf::Color player_color1 = sf::Color(255,255,255,255);
@@ -95,6 +122,12 @@ class CameraView {
     sf::RectangleShape ice;
     sf::RectangleShape player1;
     sf::RectangleShape player2;
+    sf::RectangleShape player3;
+    sf::RectangleShape player4;
+
+    std::vector<sf::RectangleShape> sprites;
+	std::vector<Animation> animations;
+
     sf::CircleShape hitbox;
     sf::CircleShape collision_pt;
     sf::RectangleShape minimapbg;

@@ -1,0 +1,4 @@
+C:/Users/johnr.000/WalrusWars/Debug/CMakeFiles/WalrusWars_core.dir
+C:/Users/johnr.000/WalrusWars/Debug/CMakeFiles/rebuild_cache.dir
+C:/Users/johnr.000/WalrusWars/Debug/CMakeFiles/application.dir
+C:/Users/johnr.000/WalrusWars/Debug/CMakeFiles/edit_cache.dir

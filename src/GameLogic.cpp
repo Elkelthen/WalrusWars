@@ -2,8 +2,28 @@
 #include <cmath>
 #include <Definitions.h>
 #include "GameLogic.h"
+#include "Player.h"
+#include <memory>
+#include <list>
+#include <vector>
 
 void GameLogic::init() {
+
+    playerList.push_back(walrus1);
+    playerList.push_back(walrus2);
+    playerList.push_back(walrus3);
+    playerList.push_back(walrus4);
+
+    posList.push_back(walrus1->getPos());
+    posList.push_back(walrus1->getPos());
+    posList.push_back(walrus1->getPos());
+    posList.push_back(walrus1->getPos());
+
+    massList.push_back(0);
+    massList.push_back(0);
+    massList.push_back(0);
+    massList.push_back(0);
+
     state = mainMenu;
     walrus1->resetStats();
     walrus2->resetStats();
@@ -17,10 +37,12 @@ void GameLogic::init() {
     walrus2->setColor(sf::Color(155,155,155,255));
     walrus1->setName(DEFAULT_NAME_1);
     walrus2->setName(DEFAULT_NAME_2);
+    walrus3->setName(DEFAULT_NAME_3);
+    walrus4->setName(DEFAULT_NAME_4);
+
 }
 
 void GameLogic::update(float dSec) {
-
     if (state == playing) {
 
         // fish power-up generation
@@ -33,7 +55,7 @@ void GameLogic::update(float dSec) {
             sf::Vector2f rand_target = sf::Vector2f(rand() % 160 - 80, rand() % 160 - 80);
             // make sure first jump is from water onto ice
             while ((stage->getTileDura((int)(rand_spawn.x / ICE_BLOCKS_SIZE_X), (int)(rand_spawn.y / ICE_BLOCKS_SIZE_Y), progression) > 0) ||
-                    (stage->getTileDura((int)((rand_spawn.x + rand_target.x) / ICE_BLOCKS_SIZE_X), (int)((rand_spawn.y + rand_target.y) / ICE_BLOCKS_SIZE_Y), progression) <= 0)) {
+                (stage->getTileDura((int)((rand_spawn.x + rand_target.x) / ICE_BLOCKS_SIZE_X), (int)((rand_spawn.y + rand_target.y) / ICE_BLOCKS_SIZE_Y), progression) <= 0)) {
                 rand_spawn = sf::Vector2f(rand() % ((int)(7 * WINDOW_WIDTH / 8)) + (WINDOW_WIDTH / 8), rand() % ((int)(5 * WINDOW_WIDTH / 8)) + (WINDOW_WIDTH / 8));
                 rand_target = sf::Vector2f(rand() % 160 - 80, rand() % 160 - 80);
             }
@@ -41,191 +63,204 @@ void GameLogic::update(float dSec) {
             fish_list.push_back(std::unique_ptr<Fish>(new Fish(rand_spawn, rand_target)));
         }
 
-        // process movement
-        if (!walrus1->isDead()) {
-            walrus1->tickUpdate(dSec);
-            walrus1->applyPassiveForce(dSec);
-        }
-        if (!walrus2->isDead()) {
-            walrus2->tickUpdate(dSec);
-            walrus2->applyPassiveForce(dSec);
+        //Handle all of this crap in one main loop.            //////////////////////////////////////////////////////////////////////////////////////////////////////////
+        float dist;
+        sf::Vector2f posDiff;
+        
+        for (int i = 0; i < playerList.size(); i++) {
+
+            //Movement
+            if (!playerList[i]->isDead()) {
+                playerList[i]->tickUpdate(dSec);
+                playerList[i]->applyPassiveForce(dSec);
+            }
+
+            //update positions and masses
+            posList[i] = playerList[i]->getPos();
+            massList[i] = playerList[i]->getMass();
+
+            //Water Collision
+            if (stage->getTileDura((posList[i].x) / ICE_BLOCKS_SIZE_X, (posList[i].y) / ICE_BLOCKS_SIZE_Y, progression) <= 0) {
+                if (!playerList[i]->isDead()) {
+                    handlePlayerDeath(i);
+                    splash = sfx_volume;
+                }
+            }
+
+            //Boundary Collision
+            if (posList[i].x >= WINDOW_WIDTH || posList[i].x <= 0) {
+                handleBoundaryCollision(i, posList[i].x);
+            }
         }
 
-        // melt stage
+        bool collision = false;
+        //Player Collision. Loops through one by one and makes a table holding each difference to check.
+        for (int i = 0; i < playerList.size(); i++) {
+            for (int j = 0; j < playerList.size(); j++) {
+                if (i != j) {
+                    sf::Vector2f posDiff = posList[i] - posList[j];
+                    dist = sqrt((posDiff.x * posDiff.x) + (posDiff.y * posDiff.y));
+                    if (dist < PLAYER_HITBOX_SCALE * (massList[i] + massList[j]) && !(playerList[i]->isDead() || playerList[j]->isDead())) {
+                        if (!collision) {
+                            handlePlayerCollision(i, j);
+                            collision = true;
+                        }
+                    }
+                }
+            }
+        }
+
+            // melt stage
         accumulator += dSec;
-        if(accumulator >= .6){
-          stage->tickMelt(progression);
-          accumulator -= .6;
-        }
-
-        // *check collisions* //
-        sf::Vector2f w1_pos = walrus1->getPos();
-        sf::Vector2f w2_pos = walrus2->getPos();
-        float w1_mass = walrus1->getMass();
-        float w2_mass = walrus2->getMass();
-
-        // player1 - water collision
-        if (stage->getTileDura((w1_pos.x)/ICE_BLOCKS_SIZE_X, (w1_pos.y)/ICE_BLOCKS_SIZE_Y, progression) <= 0) {
-            if (!walrus1->isDead()) {
-                handlePlayerDeath(1);
-                splash = sfx_volume;
+            if (accumulator >= .6) {
+                stage->tickMelt(progression);
+                accumulator -= .6;
             }
-        }
-        // player2 - water collision
-        if (stage->getTileDura((w2_pos.x)/ICE_BLOCKS_SIZE_X, (w2_pos.y)/ICE_BLOCKS_SIZE_Y, progression) <= 0) {
-            if (!walrus2->isDead()) {
-                handlePlayerDeath(2);
-                splash = sfx_volume;
+
+            // *check collisions* //
+            sf::Vector2f w1_pos = walrus1->getPos();
+            sf::Vector2f w2_pos = walrus2->getPos();
+            sf::Vector2f w3_pos = walrus3->getPos();
+            sf::Vector2f w4_pos = walrus4->getPos();
+            float w1_mass = walrus1->getMass();
+            float w2_mass = walrus2->getMass();
+            float w3_mass = walrus2->getMass();
+            float w4_mass = walrus2->getMass();
+
+                                                                         //Attacking gives a speed boost, Defending poops out a wall for a certain time/distance
+            // player1 attack - player 2 collision
+            if (walrus1->getState() == Player::attacking) {
+                //determine direction of attack
+                p1AttackPoint = w1_pos + walrus1->getFacingDir() * (w1_mass / 3);
+
+                posDiff = w2_pos - p1AttackPoint;
+                dist = sqrt((posDiff.x * posDiff.x) + (posDiff.y * posDiff.y));
+                if (!p1_attack_handling_in_progress && dist <= PLAYER_HITBOX_SCALE * (w2_mass + w1_mass)) {
+                    // use the unit vector between attack and player to direct knockback
+                    handlePlayerAttack(1, posDiff / dist);
+                }
+                else if (dist > PLAYER_HITBOX_SCALE* (w2_mass + w1_mass)) {
+                    p1_attack_handling_in_progress = false;
+                }
             }
-        }
-
-        // player - boundary collision
-        if (w1_pos.x >= WINDOW_WIDTH || w1_pos.x <= 0) {
-            handleBoundaryCollision(1, w1_pos.x);
-        } else if (w2_pos.x >= WINDOW_WIDTH || w2_pos.x <= 0) {
-            handleBoundaryCollision(2, w2_pos.x);
-        }
-
-        // player - player collision
-        sf::Vector2f posDiff = w1_pos - w2_pos;
-        float dist = sqrt((posDiff.x * posDiff.x) + (posDiff.y * posDiff.y));
-        if (dist < PLAYER_HITBOX_SCALE*(w1_mass + w2_mass) && !(walrus1->isDead() || walrus2->isDead())) {
-            handlePlayerCollision();
-        }
-
-        // player1 attack - player 2 collision
-        if (walrus1->getState() == Player::attacking) {
-            //determine direction of attack
-            p1AttackPoint = w1_pos + walrus1->getFacingDir() * (w1_mass / 3);
-
-            posDiff = w2_pos - p1AttackPoint;
-            dist = sqrt((posDiff.x * posDiff.x) + (posDiff.y * posDiff.y));
-            if (!p1_attack_handling_in_progress && dist <= PLAYER_HITBOX_SCALE*(w2_mass + w1_mass)) {
-                // use the unit vector between attack and player to direct knockback
-                handlePlayerAttack(1, posDiff / dist);
-            } else if (dist > PLAYER_HITBOX_SCALE*(w2_mass + w1_mass))  {
+            else {
                 p1_attack_handling_in_progress = false;
             }
-        }
-        else {
-            p1_attack_handling_in_progress = false;
-        }
 
-        // player2 attack - player 1 collision
-        if (walrus2->getState() == Player::attacking) {
-            //determine direction of attack
-            p2AttackPoint = w2_pos + walrus2->getFacingDir() * (w2_mass / 3);
+            // player2 attack - player 1 collision
+            if (walrus2->getState() == Player::attacking) {
+                //determine direction of attack
+                p2AttackPoint = w2_pos + walrus2->getFacingDir() * (w2_mass / 3);
 
-            posDiff = w1_pos - p2AttackPoint;
-            dist = sqrt((posDiff.x * posDiff.x) + (posDiff.y * posDiff.y));
-            if (!p2_attack_handling_in_progress && dist <= PLAYER_HITBOX_SCALE*(w1_mass + w2_mass)) {
-                //std::cout<<"attack begun!"<<std::endl;
-                // use the unit vector between attack and player to direct knockback
-                handlePlayerAttack(2, posDiff / dist);
-            } else if (dist > PLAYER_HITBOX_SCALE*(w1_mass + w2_mass)) {
+                posDiff = w1_pos - p2AttackPoint;
+                dist = sqrt((posDiff.x * posDiff.x) + (posDiff.y * posDiff.y));
+                if (!p2_attack_handling_in_progress && dist <= PLAYER_HITBOX_SCALE * (w1_mass + w2_mass)) {
+                    //std::cout<<"attack begun!"<<std::endl;
+                    // use the unit vector between attack and player to direct knockback
+                    handlePlayerAttack(2, posDiff / dist);
+                }
+                else if (dist > PLAYER_HITBOX_SCALE* (w1_mass + w2_mass)) {
+                    p2_attack_handling_in_progress = false;
+                }
+            }
+            else {
                 p2_attack_handling_in_progress = false;
             }
-        }
-        else {
-            p2_attack_handling_in_progress = false;
-        }
 
-        // fish collisions
-        std::list<std::unique_ptr<Fish>>::iterator fish;
-        for (fish = fish_list.begin(); fish != fish_list.end(); fish++) {
-            sf::Vector2f fish_pos = (*fish)->getPosition();
-            // fish - player1 collision
-            posDiff = w1_pos - fish_pos;
-            dist = sqrt((posDiff.x * posDiff.x) + (posDiff.y * posDiff.y));
-            if (dist < PLAYER_HITBOX_SCALE*w1_mass + FISH_SIZE && !walrus1->isDead()) {
-                handleFishCollision(1, *fish);
-                break;
+            // fish collisions
+            std::list<std::unique_ptr<Fish>>::iterator fish;
+            for (fish = fish_list.begin(); fish != fish_list.end(); fish++) {
+                sf::Vector2f fish_pos = (*fish)->getPosition();
+                // fish - player1 collision
+                posDiff = w1_pos - fish_pos;
+                dist = sqrt((posDiff.x * posDiff.x) + (posDiff.y * posDiff.y));
+                if (dist < PLAYER_HITBOX_SCALE * w1_mass + FISH_SIZE && !walrus1->isDead()) {
+                    handleFishCollision(1, *fish);
+                    break;
+                }
+                // fish - player 2 collision
+                posDiff = w2_pos - fish_pos;
+                dist = sqrt((posDiff.x * posDiff.x) + (posDiff.y * posDiff.y));
+                if (dist < PLAYER_HITBOX_SCALE * w2_mass + FISH_SIZE && !walrus2->isDead()) {
+                    handleFishCollision(2, *fish);
+                    break;
+                }
+                // fish - water collision
+                if (stage->getTileDura(fish_pos.x / ICE_BLOCKS_SIZE_X, fish_pos.y / ICE_BLOCKS_SIZE_Y, progression) <= 0 && !(*fish)->flop_progress_timer) {
+                    handleFishCollision(0, *fish);
+                    break;
+                }
+
+                // tick update for living fish
+                (*fish)->flop(dSec);
             }
-            // fish - player 2 collision
-            posDiff = w2_pos - fish_pos;
-            dist = sqrt((posDiff.x * posDiff.x) + (posDiff.y * posDiff.y));
-            if (dist < PLAYER_HITBOX_SCALE*w2_mass + FISH_SIZE && !walrus2->isDead()) {
-                handleFishCollision(2, *fish);
-                break;
-            }
-            // fish - water collision
-            if (stage->getTileDura(fish_pos.x/ICE_BLOCKS_SIZE_X, fish_pos.y/ICE_BLOCKS_SIZE_Y, progression) <= 0 && !(*fish)->flop_progress_timer) {
-                handleFishCollision(0, *fish);
-                break;
-            }
-
-            // tick update for living fish
-            (*fish)->flop(dSec);
-        }
-
-
+            //std::cout << "end\n";
     }
-
 }
 
 void GameLogic::handleBoundaryCollision(int walrus, float xpos) {
 
-    if (walrus == 1 && xpos <= 0) {
-        if (walrus2->isDead()) {
-            progression--;
-            //std::cout<<"Round Number: " << round<< "\n";
-            round += 1;
-            fish_list.clear();
-            walrus1->spawn(sf::Vector2f(15 * WINDOW_WIDTH / 16, WINDOW_HEIGHT / 2));
-            walrus2->spawn(sf::Vector2f(WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2));
+    if (walrus < playerList.size() / 2) {
 
-            // balance difficulty curve
-            if (progression == -1) {
-                walrus2->handlePowerUp(1);
+        //Check to see if other team is dead
+        bool winner = true;
+        for (int i = playerList.size() / 2; i < playerList.size(); i++) {
+            if (!playerList[i]->isDead()) {
+                winner = false;
             }
-
-        } else {
-            sf::Vector2f newVel = walrus1->getVel();
-            newVel.x *= -1;
-            walrus1->setVel(newVel);
-            walrus1->tickUpdate(COLLISION_KNOCKBACK_TIME);
-            border_bump = sfx_volume * BUMP_VOL_SCALE;
         }
-    }
-
-    else if (walrus == 2 && xpos >= WINDOW_WIDTH) {
-        if (walrus1->isDead()) {
+        
+        //If they are both dead
+        if (winner == true && xpos >= WINDOW_WIDTH) {
             progression++;
-            //std::cout<<"Round Number: " << round<< "\n";
             round += 1;
             fish_list.clear();
-            walrus1->spawn(sf::Vector2f(WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2));
-            walrus2->spawn(sf::Vector2f(WINDOW_WIDTH / 16, WINDOW_HEIGHT / 2));
-
-            // balance difficulty curve
-            if (progression == 1) {
-                walrus1->handlePowerUp(1);
+            if (sprites.size() == 2) {
+                resetGame();
             }
-        } else {
-            sf::Vector2f newVel = walrus2->getVel();
+            else {
+                begin2v2();
+            }
+        }
+        //at least one is still alive
+        else {
+            sf::Vector2f newVel = playerList[walrus]->getVel();
             newVel.x *= -1;
-            walrus2->setVel(newVel);
-            walrus2->tickUpdate(COLLISION_KNOCKBACK_TIME);
+            playerList[walrus]->setVel(newVel);
+            playerList[walrus]->tickUpdate(COLLISION_KNOCKBACK_TIME);
             border_bump = sfx_volume * BUMP_VOL_SCALE;
         }
     }
+    else {
+        bool winner = true;
+        for (int i = 0; i < playerList.size() / 2; i++) {
+            if (!playerList[i]->isDead()) {
+                winner = false;
+            }
+        }
 
-    else if (walrus == 1 && xpos >= WINDOW_WIDTH) {
-        sf::Vector2f newVel = walrus1->getVel();
-        newVel.x *= -1;
-        walrus1->setVel(newVel);
-        walrus1->tickUpdate(COLLISION_KNOCKBACK_TIME);
-        border_bump = sfx_volume * BUMP_VOL_SCALE;
+        //If they are both dead
+        if (winner == true && xpos <= 0) {
+            progression--;
+            round += 1;
+            fish_list.clear();
+            if (sprites.size() == 2) {
+                resetGame();
+            }
+            else {
+                begin2v2();
+            }
+        }
+        //at least one is still alive
+        else {
+            sf::Vector2f newVel = playerList[walrus]->getVel();
+            newVel.x *= -1;
+            playerList[walrus]->setVel(newVel);
+            playerList[walrus]->tickUpdate(COLLISION_KNOCKBACK_TIME);
+            border_bump = sfx_volume * BUMP_VOL_SCALE;
+        }
+
     }
-
-    else if (walrus == 2 && xpos <= 0) {
-        sf::Vector2f newVel = walrus2->getVel();
-        newVel.x *= -1;
-        walrus2->setVel(newVel);
-        walrus2->tickUpdate(COLLISION_KNOCKBACK_TIME);
-        border_bump = sfx_volume * BUMP_VOL_SCALE;
-    }
-
 
 }
 
@@ -243,15 +278,16 @@ void GameLogic::handleFishCollision(int player, std::unique_ptr<Fish> &fish) {
 
 }
 
-void GameLogic::handlePlayerCollision() {
+void GameLogic::handlePlayerCollision(int i, int j) {
 
   //find the velocity of collision along the line of collision
-  sf::Vector2f w1_vel = walrus1->getVel();
-  sf::Vector2f w2_vel = walrus2->getVel();
-  sf::Vector2f w1_pos = walrus1->getPos();
-  sf::Vector2f w2_pos = walrus2->getPos();
-  float w1_mass = walrus1->getMass();
-  float w2_mass = walrus2->getMass();
+  sf::Vector2f w1_vel = playerList[i]->getVel();
+  sf::Vector2f w2_vel = playerList[j]->getVel();
+  sf::Vector2f w1_pos = posList[i];
+  sf::Vector2f w2_pos = posList[j];
+  float w1_mass = massList[i];
+  float w2_mass = massList[j];
+
 
   // calculate point of collision for potentially adding a collision animation later
   playerCollisionPoint = sf::Vector2f(((w1_pos.x * w2_mass) + (w2_pos.x * w1_mass)) / (w1_mass + w2_mass), ((w1_pos.y * w2_mass) + (w2_pos.y * w1_mass)) / (w1_mass + w2_mass));
@@ -264,13 +300,13 @@ void GameLogic::handlePlayerCollision() {
   float length = sqrt((posDiff.x * posDiff.x) + (posDiff.y * posDiff.y));
   sf::Vector2f normal = sf::Vector2f(posDiff.x / length, posDiff.y / length);
   // calculate the tangent unit vector
-  sf::Vector2f tangent = sf::Vector2f(normal.y*-1, normal.x);
+  sf::Vector2f tangent = sf::Vector2f(normal.y * -1, normal.x);
   // dot product of normal and velocities
-  float walrus1ScalarNorm = (normal.x*w1_vel.x)+(normal.y*w1_vel.y);
-  float walrus2ScalarNorm = (normal.x*w2_vel.x)+(normal.y*w2_vel.y);
+  float walrus1ScalarNorm = (normal.x * w1_vel.x) + (normal.y * w1_vel.y);
+  float walrus2ScalarNorm = (normal.x * w2_vel.x) + (normal.y * w2_vel.y);
   // dot product of tangent and velocities
-  float walrus1ScalarTan = (tangent.x*w1_vel.x)+(tangent.y*w1_vel.y);
-  float walrus2ScalarTan = (tangent.x*w2_vel.x)+(tangent.y*w2_vel.y);
+  float walrus1ScalarTan = (tangent.x * w1_vel.x) + (tangent.y * w1_vel.y);
+  float walrus2ScalarTan = (tangent.x * w2_vel.x) + (tangent.y * w2_vel.y);
   // calculate elastic collision
   float walrus1NewScalarNorm = (walrus1ScalarNorm * (w1_mass - w2_mass) + 2 * w2_mass * walrus2ScalarNorm) / (w1_mass + w2_mass);
   float walrus2NewScalarNorm = (walrus2ScalarNorm * (w2_mass - w1_mass) + 2 * w1_mass * walrus1ScalarNorm) / (w1_mass + w2_mass);
@@ -280,14 +316,14 @@ void GameLogic::handlePlayerCollision() {
   sf::Vector2f walrus1NewVecTan = tangent * walrus1ScalarTan;
   sf::Vector2f walrus2NewVecTan = tangent * walrus2ScalarTan;
 
-  walrus1->setVel(walrus1NewVecTan + walrus1NewVecNorm);
-  walrus2->setVel(walrus2NewVecTan + walrus2NewVecNorm);
+  playerList[i]->setVel(walrus1NewVecTan + walrus1NewVecNorm);
+  playerList[j]->setVel(walrus2NewVecTan + walrus2NewVecNorm);
   // avoid walrus sticking together occasionally
-  walrus1->tickUpdate(COLLISION_KNOCKBACK_TIME);
-  walrus2->tickUpdate(COLLISION_KNOCKBACK_TIME);
+  playerList[i]->tickUpdate(COLLISION_KNOCKBACK_TIME);
+  playerList[j]->tickUpdate(COLLISION_KNOCKBACK_TIME);
 
   // power of collision
-  sf::Vector2f velDiff = walrus1->getVel() - walrus2->getVel();
+  sf::Vector2f velDiff = playerList[i]->getVel() - playerList[j]->getVel();
   float magnitude = sqrt((velDiff.x * velDiff.x) + (velDiff.y * velDiff.y));
   player_bump = magnitude * BUMP_VOL_SCALE * (sfx_volume / 100);
 }
@@ -341,36 +377,47 @@ float GameLogic::getMusicVolume() {
  * 2 param: walrus2 died
  * */
 void GameLogic::handlePlayerDeath(int walrus) {
-    //check if both are dead (fixes respawn bug)
-    if (walrus2->isDead() && walrus == 1) {
-        resetGame();
+
+    //Kill the current walrus
+    playerList[walrus]->kill();
+    
+    //First check to see if everyone is dead. If so then we just reset where we are.
+    bool allDead = true;
+    for (int i = 0; i < sprites.size(); i++) {
+        if (!playerList[i]->isDead()) {
+            allDead = false;
+        }
+    }
+    if (allDead) {
+        if (sprites.size() == 2) {
+            resetGame();
+        }
+        else {
+            begin2v2();
+        }
     }
 
-	if (walrus == 1) {
-	    if (walrus2->isDead()) {
-	        resetGame();
-	    } else {
-            walrus1->kill();
-            walrus2->kills++;
-            // check for game over
-            if (progression == 2) {
-                winner1 = false;
-                state = gameOverMenu;
+    //check to see if the entire team is dead.
+    bool winner = true;
+    if (walrus < sprites.size() / 2) {
+        for (int i = 0; i < sprites.size() / 2 + 1; i++) {
+            if (!playerList[i]->isDead()) {
+                winner = false;
             }
-	    }
-	}
+        }
+    }
+    else {
+        for (int i = sprites.size() / 2; i < playerList.size(); i++) {
+            if (!playerList[i]->isDead()) {
+                winner = false;
+            }
+        }
+    }
 
-	else if (walrus == 2) {
-        if (walrus1->isDead()) {
-            resetGame();
-        } else {
-            walrus2->kill();
-            walrus1->kills++;
-            // check for game over
-            if (progression == -2) {
-                winner1 = true;
-                state = gameOverMenu;
-            }
+    if (winner == true) {
+        if (progression == 2 || progression == -2) {
+            winner1 = false;
+            state = gameOverMenu;
         }
     }
 
@@ -387,16 +434,48 @@ void GameLogic::togglePause() {
 }
 
 void GameLogic::resetGame() {
+
     state = playing;
-    walrus1->spawn(sf::Vector2f(5 * WINDOW_WIDTH / 8, WINDOW_HEIGHT / 2));
-    walrus2->spawn(sf::Vector2f(3 * WINDOW_WIDTH / 8, WINDOW_HEIGHT / 2));
+    walrus1->spawn(sf::Vector2f(3 * WINDOW_WIDTH / 8, WINDOW_HEIGHT / 2));
+    walrus2->spawn(sf::Vector2f(5 * WINDOW_WIDTH / 8, WINDOW_HEIGHT / 2));
+    sprites.clear();
+    sprites.push_back(walrus1);
+    sprites.push_back(walrus1);
+
     // balance difficulty curve
     if (progression == -1) {
         walrus2->handlePowerUp(1);
     } else if (progression == 1) {
         walrus1->handlePowerUp(1);
     }
+
 }
+
+void GameLogic::begin2v2() {
+    state = playing;
+
+    walrus1->spawn(sf::Vector2f(3 * WINDOW_WIDTH / 8, WINDOW_HEIGHT / 2 - 50));
+    walrus2->spawn(sf::Vector2f(3 * WINDOW_WIDTH / 8, WINDOW_HEIGHT / 2 + 50));
+    walrus3->spawn(sf::Vector2f(5 * WINDOW_WIDTH / 8, WINDOW_HEIGHT / 2 - 50));
+    walrus4->spawn(sf::Vector2f(5 * WINDOW_WIDTH / 8, WINDOW_HEIGHT / 2 + 50));
+    sprites.clear();
+    sprites.push_back(walrus1);
+    sprites.push_back(walrus2);
+    sprites.push_back(walrus3);
+    sprites.push_back(walrus4);
+
+    if (progression == -1) {
+        for (int i = 0; i != playerList.size() / 2; i++) {
+            playerList[i]->handlePowerUp(1);
+        }
+    }
+    else if (progression == 1) {
+        for (int i = playerList.size() / 2; i < playerList.size(); i++) {
+            playerList[i]->handlePowerUp(1);
+        }
+    }
+}
+
 void GameLogic::handleOptionsMenu() {
     state = optionsMenu;
 }

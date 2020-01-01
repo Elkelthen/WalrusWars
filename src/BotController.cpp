@@ -3,9 +3,23 @@
 #include <cmath>
 
 void BotController::update(sf::RenderWindow &window, GameLogic &logic, float dSec, int playerNum) {
+    sf::Vector2f self_pos = logic.playerList[playerNum]->getPos();
 
-    sf::Vector2f self_pos = (playerNum == 1) ? logic.walrus1->getPos() : logic.walrus2->getPos();
-    bool opponent_dead = (playerNum == 1) ? logic.walrus2->isDead() : logic.walrus1->isDead();
+    bool opponent_dead = true;
+
+    if (playerNum > logic.playerList.size() / 2) {
+        for (int i = logic.playerList.size() / 2; i < logic.playerList.size(); i++) {
+            if (!logic.playerList[i]->isDead()) {
+                opponent_dead = false;
+            }
+        }
+    } else {
+        for (int i = 0; i < logic.playerList.size() / 2; i++) {
+            if (!logic.playerList[i]->isDead()) {
+                opponent_dead = false;
+            }
+        }
+    }
 
     if(!opponent_dead) {
         // reset repel walls
@@ -103,12 +117,10 @@ void BotController::update(sf::RenderWindow &window, GameLogic &logic, float dSe
         sf::Vector2<double> unit_vec = sf::Vector2<double>(dir.x / angst_magnitude, dir.y / angst_magnitude);
         dir = sf::Vector2f(unit_vec.x / 4, unit_vec.y / 4);
     }
-
     // dont process input here if we are just calling the update in debug mode
     if (dSec > 0) {
         // apply movement force
-        (playerNum == 1) ? logic.walrus1->applyActiveForce(dir, dSec) : logic.walrus2->applyActiveForce(dir, dSec);
-
+        logic.playerList[playerNum]->applyActiveForce(dir, dSec);
         // process events
         sf::Event Event;
         while (window.pollEvent(Event)) {
@@ -136,9 +148,29 @@ void BotController::update(sf::RenderWindow &window, GameLogic &logic, float dSe
 
 void BotController::calculateRays(GameLogic &logic, int playerNum) {
 
-    bool opponent_dead = (playerNum == 1) ? logic.walrus2->isDead() : logic.walrus1->isDead();
-    sf::Vector2<double> opponent_pos = (playerNum == 1) ? static_cast<sf::Vector2<double>>(logic.walrus2->getPos()) : static_cast<sf::Vector2<double>>(logic.walrus1->getPos());
-    sf::Vector2<double> self_pos = (playerNum == 1) ? static_cast<sf::Vector2<double>>(logic.walrus1->getPos()) : static_cast<sf::Vector2<double>>(logic.walrus2->getPos());
+    bool opponent_dead = true;
+
+    if (playerNum < logic.playerList.size() / 2) {
+        for (int i = logic.playerList.size() / 2; i < logic.playerList.size(); i++) {
+            if (!logic.playerList[i]->isDead()) {
+                opponent_dead = false;
+            }
+        }
+    }
+    else {
+        for (int i = 0; i < logic.playerList.size() / 2; i++) {
+            if (!logic.playerList[i]->isDead()) {
+                opponent_dead = false;
+            }
+        }
+    }
+    
+    //bool opponent_dead = (playerNum == 1) ? logic.walrus2->isDead() : logic.walrus1->isDead();
+
+
+    //THIS IS DONE STUPIDLY
+    sf::Vector2<double> opponent_pos = (playerNum == 1) ? static_cast<sf::Vector2<double>>(logic.playerList[1]->getPos()) : static_cast<sf::Vector2<double>>(logic.playerList[0]->getPos());
+    sf::Vector2<double> self_pos = (playerNum == 1) ? static_cast<sf::Vector2<double>>(logic.playerList[0]->getPos()) : static_cast<sf::Vector2<double>>(logic.playerList[1]->getPos());
 
     rays.clear();
 
@@ -214,13 +246,41 @@ void BotController::calculateRays(GameLogic &logic, int playerNum) {
         Ray r {unit_vec, magnitude, 4};
         rays.push_back(r);
     }
+    
 }
 
 void BotController::calculateForce(GameLogic &logic, int playerNum) {
 
-    bool opponent_dead = (playerNum == 1) ? logic.walrus2->isDead() : logic.walrus1->isDead();
-    sf::Vector2f opponent_vel = (playerNum == 1) ? logic.walrus2->getVel() : logic.walrus1->getVel();
-    sf::Vector2f self_vel = (playerNum == 1) ? logic.walrus1->getVel() : logic.walrus2->getVel();
+    bool opponent_dead = true;
+
+    if (playerNum < logic.playerList.size() / 2) {
+        for (int i = logic.playerList.size() / 2; i < logic.playerList.size(); i++) {
+            if (!logic.playerList[i]->isDead()) {
+                opponent_dead = false;
+            }
+        }
+    }
+    else {
+        for (int i = 0; i < logic.playerList.size() / 2; i++) {
+            if (!logic.playerList[i]->isDead()) {
+                opponent_dead = false;
+            }
+        }
+    }
+
+    
+
+    //bool opponent_dead = (playerNum == 1) ? logic.walrus2->isDead() : logic.walrus1->isDead();
+
+    sf::Vector2f avg_vel;
+    for (int i = 0; i < logic.sprites.size(); i++) {
+        avg_vel += logic.playerList[i]->getVel();
+    }
+    avg_vel.x = avg_vel.x / logic.sprites.size();
+    avg_vel.y = avg_vel.y / logic.sprites.size();
+
+    sf::Vector2f opponent_vel = avg_vel;
+    sf::Vector2f self_vel = logic.playerList[playerNum]->getVel();
 
     sf::Vector2<double> pop_vec = sf::Vector2<double>(0,0);
 

@@ -23,6 +23,8 @@ void Player::spawn(sf::Vector2f spawn_pos) {
     attack_charge = 0.0f;
     attack_release_timer = 0.0f;
     attack_duration_timer = 0.0f;
+	blocking = false;
+	boosting = false;
 }
 
 void Player::tickUpdate(float dSec) {
@@ -94,7 +96,19 @@ void Player::applyPassiveForce(float dSec) {
         vel.y += dSec * resting_resistance * DECELERATE_STRENGTH;
     }
 
-
+	if (boosting) {
+		if (boost_timer > 0) {
+			vel = facing_dir * 1000.0f;
+			boost_timer -= dSec;
+			//std::cout << "Boosting" << vel.x << " " << vel.y << "\n";
+		}
+		else {
+			vel = facing_dir * 500.0f;
+			boosting = false;
+			boost_timer = 0;
+			boost_cooldown = BOOST_COOLDOWN;
+		}
+	}
 }
 
 void Player::applyActiveForce(sf::Vector2f force_dir, float dSec) {
@@ -139,12 +153,51 @@ void Player::applyActiveForce(sf::Vector2f force_dir, float dSec) {
     force_dir *= speed_boost;
     vel += force_dir * dSec * ACCELERATE_STRENGTH;
 
+	if (boosting && force_dir.x + force_dir.y != 0) {
+		if (boost_timer > 0) {
+			vel = facing_dir * 1000.0f;
+			boost_timer -= dSec;
+			//std::cout << "Boosting" << vel.x << " " << vel.y << "\n";
+			std::cout << boost_timer << "BOOST\n";
+		}
+		else {
+			vel = facing_dir * 500.0f;
+			boosting = false;
+			boost_timer = 0;
+			boost_cooldown = BOOST_COOLDOWN;
+		}
+	}
+	if (boost_cooldown > 0) {
+		boost_cooldown -= dSec;
+		std::cout << boost_cooldown << "COOLDOWN\n";
+	}
+	else {
+		boost_cooldown = 0;
+	}
+	
     if (stamina < 0) {
         state = resting;
         attack_charge = 0.0f;
     }
 }
 
+void Player::boost(int playerNum) {
+	//This will give a speed boost temporarily
+	if (boost_timer == 0 && boost_cooldown == 0) {
+		boosting = true;
+		boost_timer = BOOST_TIMER;
+		//This is working oddly. Seems to be shorter than it should be now that I added in the boost cooldown bit.
+		//More importantly, attempting to boost without an "active force" halts motion entirely. So that need to be changed.
+	}
+	else {
+		//std::cout << "error, no boost \n";
+	}
+}
+
+void Player::makeWall(int playerNum) {
+	//This will make a boolean value go true so that cameraView can read that and make a wall behind the player
+	blocking = true;
+}
 
 void Player::handlePowerUp(int powerup) {
     powerups_collected++;
@@ -173,7 +226,7 @@ void Player::raiseTusks(float dSec) {
 void Player::slash() {
     state = normal;
     slash_attack_num++;
-    std::cout<<"SLASH: "<<attack_charge<<std::endl;
+    //std::cout<<"SLASH: "<<attack_charge<<std::endl;
     stamina -= ATTACK_STAMINA_COST;
     attack_duration_timer = ATTACK_DURATION_TIMER;
     state = attacking;

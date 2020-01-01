@@ -4,6 +4,7 @@
 #include "Stage.h"
 #include "Fish.h"
 #include <list>
+#include <vector>
 #include <memory>
 
 class GameLogic {
@@ -12,12 +13,13 @@ class GameLogic {
     void init();
     void update(float);
     void handlePlayerDeath(int);
-    void handlePlayerCollision();
+    void handlePlayerCollision(int, int);
     void handleBoundaryCollision(int, float);
     void handleFishCollision(int, std::unique_ptr<Fish> &fish);
     void togglePause();
     void returnToMenu();
     void resetGame();
+    void begin2v2();
     void handleOptionsMenu();
     void handleHelpMenu();
     void handleStatsMenu();
@@ -43,8 +45,18 @@ class GameLogic {
     float player_hit;
     float splash;
     float powerup;
-    std::unique_ptr<Player> walrus1 = std::unique_ptr<Player>(new Player());
-    std::unique_ptr<Player> walrus2 = std::unique_ptr<Player>(new Player());
+
+    std::vector<std::shared_ptr<Player>> playerList;
+    std::vector<std::shared_ptr<Player>> sprites;
+    std::shared_ptr<Player> walrus1 = std::shared_ptr<Player>(new Player());
+    std::shared_ptr<Player> walrus2 = std::shared_ptr<Player>(new Player());
+    std::shared_ptr<Player> walrus3 = std::shared_ptr<Player>(new Player());
+    std::shared_ptr<Player> walrus4 = std::shared_ptr<Player>(new Player());
+
+    std::vector<sf::Vector2f> posList;
+    std::vector<float> massList;
+
+
     std::unique_ptr<Stage> stage = std::unique_ptr<Stage>(new Stage());
     int round = 1;
 

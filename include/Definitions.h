@@ -60,6 +60,11 @@
 #define ATTACK_RELEASE_TIMER 0.30f
 #define ATTACK_DURATION_TIMER 0.60f
 
+//Abilities
+#define BOOST_TIMER 0.25f   //these values are preliminary because I have no idea what they are. Probably hex milliseconds?
+#define BOOST_COOLDOWN 3.0f
+
+
 // text
 #define UI_TEXT_SIZE 100
 
@@ -70,6 +75,7 @@
 #define SFX_VOLUME_STRING "SFX Volume: "
 #define MUSIC_VOLUME_STRING "Music Volume: "
 #define PLAY_STRING "Play"
+#define TWO_STRING "Play 2v2"
 #define HELP_STRING "Help"
 #define OPTIONS_STRING "Options"
 #define QUIT_STRING "Quit"
@@ -78,6 +84,8 @@
 #define MAIN_MENU "Return to Main Menu"
 #define P1 "Player 1"
 #define P2 "Player 2"
+#define P3 "Player 3"
+#define P4 "Player 4"
 #define BOT "Bot"
 #define WON " Won!"
 #define KILLS "Kills: "
@@ -93,6 +101,8 @@
 #define GAME_RULES "Being efficient with your actions to maintain stamina is crucial!\nSlash your opponent to deplete their stamina & eat fish \nto recover your own stamina:\n - Red increases movement speed, Green increases flubber mass\nProgress to the next stage to continue! \nThe first walrus to reach the end wins!"
 #define DEFAULT_NAME_1 "Wally"
 #define DEFAULT_NAME_2 "Wahlberg"
+#define DEFAULT_NAME_3 "Wallace"
+#define DEFAULT_NAME_4 "Walter"
 #define MAX_INPUT_SIZE 7
 
 //volume
